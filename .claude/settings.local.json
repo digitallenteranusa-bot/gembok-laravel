@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls -la \"D:\\\\SOURCE CODE\\\\gembok-lara-main\\\\resources\\\\views\\\\admin\"\" | grep -E \"dashboard)",
+      "Bash(customer \")",
+      "Bash(ls:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(powershell -Command \"Remove-Item -Path ''.\\\\nul'' -Force -ErrorAction SilentlyContinue; if \\(Test-Path ''.\\\\nul''\\) { Write-Host ''Still exists'' } else { Write-Host ''Removed'' }\")",
+      "Bash(powershell -Command \"Remove-Item -LiteralPath ''\\\\?\\\\D:\\\\SOURCE CODE\\\\gembok-lara-main\\\\nul'' -Force -ErrorAction SilentlyContinue\")"
+    ]
+  }
+}
