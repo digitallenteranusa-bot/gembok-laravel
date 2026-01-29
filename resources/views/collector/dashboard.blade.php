@@ -17,16 +17,28 @@
         </div>
     </div>
 
-    <!-- Stats Cards -->
+    <!-- Stats Cards Row 1 -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-gray-500 text-sm">Target Hari Ini</p>
-                    <p class="text-2xl font-bold text-blue-600">{{ $todayTarget ?? 0 }}</p>
+                    <p class="text-gray-500 text-sm">Pelanggan Saya</p>
+                    <p class="text-2xl font-bold text-indigo-600">{{ $totalCustomers ?? 0 }}</p>
                 </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-bullseye text-blue-600 text-xl"></i>
+                <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-users text-indigo-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Total Hutang</p>
+                    <p class="text-2xl font-bold text-red-600">Rp {{ number_format($totalDebt ?? 0, 0, ',', '.') }}</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-file-invoice-dollar text-red-600 text-xl"></i>
                 </div>
             </div>
         </div>
@@ -54,15 +66,30 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Stats Cards Row 2 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Target Hari Ini (Jatuh Tempo)</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ $todayTarget ?? 0 }} invoice</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-bullseye text-blue-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
 
         <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-gray-500 text-sm">Belum Bayar</p>
-                    <p class="text-2xl font-bold text-red-600">{{ $unpaidCount ?? 0 }}</p>
+                    <p class="text-gray-500 text-sm">Invoice Belum Bayar</p>
+                    <p class="text-2xl font-bold text-orange-600">{{ $unpaidCount ?? 0 }} invoice</p>
                 </div>
-                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-exclamation-circle text-orange-600 text-xl"></i>
                 </div>
             </div>
         </div>

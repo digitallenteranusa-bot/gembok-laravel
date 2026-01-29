@@ -39,9 +39,30 @@
             </div>
         </div>
 
-        <div class="bg-blue-50 rounded-lg p-4">
-            <p class="text-sm text-blue-600 mb-1">Total Komisi Bulan Ini</p>
-            <p class="text-2xl font-bold text-blue-700">Rp {{ number_format($collector->payments()->whereMonth('created_at', now()->month)->sum('commission') ?? 0, 0, ',', '.') }}</p>
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-indigo-50 rounded-lg p-4">
+                <p class="text-sm text-indigo-600 mb-1">Total Pelanggan</p>
+                <p class="text-2xl font-bold text-indigo-700">{{ $stats['total_customers'] ?? 0 }}</p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-4">
+                <p class="text-sm text-green-600 mb-1">Total Terkumpul</p>
+                <p class="text-2xl font-bold text-green-700">Rp {{ number_format($stats['total_collected'] ?? 0, 0, ',', '.') }}</p>
+            </div>
+            <div class="bg-purple-50 rounded-lg p-4">
+                <p class="text-sm text-purple-600 mb-1">Total Komisi</p>
+                <p class="text-2xl font-bold text-purple-700">Rp {{ number_format($stats['total_commission'] ?? 0, 0, ',', '.') }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600 mb-1">Komisi Bulan Ini</p>
+                <p class="text-2xl font-bold text-blue-700">Rp {{ number_format($stats['this_month_commission'] ?? 0, 0, ',', '.') }}</p>
+            </div>
+        </div>
+
+        <!-- This Month Stats -->
+        <div class="mt-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-4 text-white">
+            <p class="text-sm text-green-100 mb-1">Terkumpul Bulan Ini</p>
+            <p class="text-2xl font-bold">Rp {{ number_format($stats['this_month_collected'] ?? 0, 0, ',', '.') }}</p>
         </div>
     </div>
 

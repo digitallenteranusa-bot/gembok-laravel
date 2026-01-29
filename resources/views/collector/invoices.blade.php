@@ -4,11 +4,28 @@
 
 @section('content')
 <div class="space-y-6">
+    <!-- Header with Total Debt -->
+    <div class="bg-gradient-to-r from-red-500 to-rose-600 rounded-xl p-6 text-white">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Daftar Tagihan</h1>
+                <p class="text-red-100 mt-1">Pelanggan yang di-assign kepada Anda</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-right">
+                <p class="text-red-100 text-sm">Total Hutang Pelanggan</p>
+                <p class="text-3xl font-bold">Rp {{ number_format($totalDebt ?? 0, 0, ',', '.') }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-        <h1 class="text-2xl font-bold text-gray-800">Daftar Tagihan</h1>
+        <div class="text-gray-600">
+            <span class="font-medium">{{ $invoices->total() }}</span> tagihan ditemukan
+        </div>
         <div class="mt-4 md:mt-0 flex space-x-3">
             <form action="" method="GET" class="flex space-x-2">
-                <input type="text" name="search" value="{{ request('search') }}" 
+                <input type="text" name="search" value="{{ request('search') }}"
                     class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="Cari pelanggan...">
                 <label class="flex items-center">
