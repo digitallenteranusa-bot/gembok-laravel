@@ -138,7 +138,7 @@
                                 required 
                                 value="{{ old('email') }}"
                                 class="block w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
-                                placeholder="admin@gembok.com"
+                                placeholder="email@example.com"
                             >
                         </div>
                     </div>
@@ -183,16 +183,6 @@
                         Sign In to Dashboard
                     </button>
                 </form>
-
-                <!-- Default Credentials -->
-                <div class="mt-6 p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl border border-cyan-200">
-                    <div class="flex items-center justify-center text-sm">
-                        <i class="fas fa-info-circle text-cyan-600 mr-2"></i>
-                        <span class="text-gray-700">
-                            <strong>Default:</strong> admin@gembok.com / admin123
-                        </span>
-                    </div>
-                </div>
             </div>
 
             <!-- Footer -->
