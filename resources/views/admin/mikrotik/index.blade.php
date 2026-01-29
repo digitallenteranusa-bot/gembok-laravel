@@ -18,10 +18,26 @@
                         <p class="text-gray-600 mt-1">Monitor PPPoE & Hotspot users in real-time</p>
                     </div>
                     <div class="flex items-center space-x-3">
+                        <!-- Router Selector -->
+                        @if(isset($routers) && $routers->count() > 0)
+                            <select id="router-selector" onchange="changeRouter(this.value)"
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white">
+                                @foreach($routers as $router)
+                                    <option value="{{ $router->id }}" {{ ($selectedRouter && $selectedRouter->id == $router->id) ? 'selected' : '' }}>
+                                        {{ $router->name }}
+                                        @if($router->is_default) (Default) @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        @endif
+
                         @if($connected ?? false)
                             <span class="flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg">
                                 <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                                 Connected
+                                @if($selectedRouter)
+                                    <span class="ml-1 text-xs">({{ $selectedRouter->identity ?? $selectedRouter->host }})</span>
+                                @endif
                             </span>
                         @else
                             <span class="flex items-center px-4 py-2 bg-red-100 text-red-800 rounded-lg">
@@ -29,6 +45,9 @@
                                 Disconnected
                             </span>
                         @endif
+                        <a href="{{ route('admin.mikrotik.routers.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition" title="Manage Routers">
+                            <i class="fas fa-cog"></i>
+                        </a>
                         <button onclick="refreshData()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition">
                             <i class="fas fa-sync-alt mr-2"></i>Refresh
                         </button>
@@ -273,10 +292,18 @@ function refreshData() {
     location.reload();
 }
 
+function changeRouter(routerId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('router_id', routerId);
+    window.location.href = url.toString();
+}
+
 function disconnectUser(username, type) {
     if (!confirm('Are you sure you want to disconnect ' + username + '?')) {
         return;
     }
+
+    const routerId = document.getElementById('router-selector')?.value || '';
 
     fetch('{{ route("admin.mikrotik.disconnect") }}', {
         method: 'POST',
@@ -284,7 +311,7 @@ function disconnectUser(username, type) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
-        body: JSON.stringify({ username: username, type: type })
+        body: JSON.stringify({ username: username, type: type, router_id: routerId })
     })
     .then(response => response.json())
     .then(data => {

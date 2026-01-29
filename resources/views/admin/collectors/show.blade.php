@@ -23,6 +23,9 @@
                         </div>
                     </div>
                     <div class="flex space-x-3">
+                        <a href="{{ route('admin.collectors.report', $collector) }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-chart-bar mr-2"></i>Laporan
+                        </a>
                         <a href="{{ route('admin.collectors.edit', $collector) }}" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition">
                             <i class="fas fa-edit mr-2"></i>Edit
                         </a>
@@ -67,23 +70,35 @@
                 </div>
 
                 <!-- Stats Card -->
-                <div>
+                <div class="space-y-4">
                     <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md p-6 text-white">
                         <h3 class="text-lg font-semibold mb-4">Collection Stats</h3>
                         <div class="space-y-3">
                             <div class="flex justify-between">
-                                <span>Total Collected</span>
-                                <span class="font-bold">Rp 0</span>
+                                <span>Total Pelanggan</span>
+                                <span class="font-bold">{{ $stats['total_customers'] ?? 0 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>This Month</span>
-                                <span class="font-bold">Rp 0</span>
+                                <span>Total Terkumpul</span>
+                                <span class="font-bold">Rp {{ number_format($stats['total_collected'] ?? 0, 0, ',', '.') }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>Commission Earned</span>
-                                <span class="font-bold">Rp 0</span>
+                                <span>Bulan Ini</span>
+                                <span class="font-bold">Rp {{ number_format($stats['this_month'] ?? 0, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Komisi Diperoleh</span>
+                                <span class="font-bold">Rp {{ number_format($stats['commission_earned'] ?? 0, 0, ',', '.') }}</span>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-red-500 to-rose-600 rounded-xl shadow-md p-6 text-white">
+                        <h3 class="text-lg font-semibold mb-2">Total Hutang Pelanggan</h3>
+                        <p class="text-3xl font-bold">Rp {{ number_format($stats['total_debt'] ?? 0, 0, ',', '.') }}</p>
+                        <a href="{{ route('admin.collectors.report', $collector) }}" class="mt-3 inline-block text-sm underline hover:no-underline">
+                            Lihat Detail Laporan <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
                     </div>
                 </div>
             </div>

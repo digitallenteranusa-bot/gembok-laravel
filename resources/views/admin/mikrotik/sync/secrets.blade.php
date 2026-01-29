@@ -50,7 +50,23 @@
 
             <form action="{{ route('admin.mikrotik.sync.secrets.import') }}" method="POST">
                 @csrf
-                
+                @if(isset($routerId))
+                    <input type="hidden" name="router_id" value="{{ $routerId }}">
+                @endif
+
+                <!-- Router Info -->
+                @if(isset($selectedRouter))
+                    <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-server text-blue-600 mr-3"></i>
+                            <div>
+                                <span class="font-medium text-blue-800">Router: {{ $selectedRouter->name }}</span>
+                                <span class="text-blue-600 text-sm ml-2">({{ $selectedRouter->host }})</span>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Options -->
                 <div class="bg-white rounded-lg shadow p-4 mb-6">
                     <h3 class="font-semibold text-gray-700 mb-3">Opsi Import</h3>

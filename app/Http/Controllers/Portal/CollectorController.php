@@ -42,45 +42,73 @@ class CollectorController extends Controller
     public function dashboard()
     {
         $collector = Collector::find(session('collector_id'));
-        
+
+        if (!$collector) {
+            return redirect()->route('collector.login')->with('error', 'Sesi tidak valid');
+        }
+
+        // Get customer IDs assigned to this collector
+        $customerIds = \App\Models\Customer::where('collector_id', $collector->id)->pluck('id');
+
+        // Stats only for assigned customers
         $todayTarget = Invoice::where('status', 'unpaid')
+            ->whereIn('customer_id', $customerIds)
             ->whereDate('due_date', '<=', today())
             ->count();
 
-        $todayCollected = Payment::where('collector_id', $collector->id ?? 0)
+        $todayCollected = Payment::where('collector_id', $collector->id)
             ->whereDate('created_at', today())
             ->sum('amount');
 
-        $monthCommission = Payment::where('collector_id', $collector->id ?? 0)
+        $monthCommission = Payment::where('collector_id', $collector->id)
             ->whereMonth('created_at', now()->month)
             ->sum('commission');
 
-        $unpaidCount = Invoice::where('status', 'unpaid')->count();
+        $unpaidCount = Invoice::where('status', 'unpaid')
+            ->whereIn('customer_id', $customerIds)
+            ->count();
 
+        // Only show invoices from assigned customers
         $pendingInvoices = Invoice::with('customer')
             ->where('status', 'unpaid')
+            ->whereIn('customer_id', $customerIds)
             ->orderBy('due_date')
             ->take(10)
             ->get();
 
         $todayCollections = Payment::with('invoice.customer')
-            ->where('collector_id', $collector->id ?? 0)
+            ->where('collector_id', $collector->id)
             ->whereDate('created_at', today())
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Additional stats
+        $totalCustomers = $customerIds->count();
+        $totalDebt = Invoice::where('status', 'unpaid')
+            ->whereIn('customer_id', $customerIds)
+            ->sum('total');
+
         return view('collector.dashboard', compact(
             'collector', 'todayTarget', 'todayCollected', 'monthCommission',
-            'unpaidCount', 'pendingInvoices', 'todayCollections'
+            'unpaidCount', 'pendingInvoices', 'todayCollections',
+            'totalCustomers', 'totalDebt'
         ));
     }
 
     public function invoices(Request $request)
     {
         $collector = Collector::find(session('collector_id'));
-        
+
+        if (!$collector) {
+            return redirect()->route('collector.login')->with('error', 'Sesi tidak valid');
+        }
+
+        // Get customer IDs assigned to this collector
+        $customerIds = \App\Models\Customer::where('collector_id', $collector->id)->pluck('id');
+
         $query = Invoice::with('customer')
-            ->where('status', 'unpaid');
+            ->where('status', 'unpaid')
+            ->whereIn('customer_id', $customerIds); // Only show assigned customers
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -96,15 +124,30 @@ class CollectorController extends Controller
 
         $invoices = $query->orderBy('due_date')->paginate(20);
 
-        return view('collector.invoices', compact('collector', 'invoices'));
+        // Stats for this collector
+        $totalDebt = Invoice::where('status', 'unpaid')
+            ->whereIn('customer_id', $customerIds)
+            ->sum('total');
+
+        return view('collector.invoices', compact('collector', 'invoices', 'totalDebt'));
     }
 
     public function collect(Invoice $invoice = null)
     {
         $collector = Collector::find(session('collector_id'));
-        
+
+        if (!$collector) {
+            return redirect()->route('collector.login')->with('error', 'Sesi tidak valid');
+        }
+
         if ($invoice) {
             $invoice->load('customer');
+
+            // Validate: collector can only collect from assigned customers
+            if ($invoice->customer->collector_id !== $collector->id) {
+                return redirect()->route('collector.invoices')
+                    ->with('error', 'Anda tidak memiliki akses ke pelanggan ini');
+            }
         }
 
         return view('collector.collect', compact('collector', 'invoice'));
@@ -112,13 +155,24 @@ class CollectorController extends Controller
 
     public function processPayment(Request $request, Invoice $invoice)
     {
+        $collector = Collector::find(session('collector_id'));
+
+        if (!$collector) {
+            return redirect()->route('collector.login')->with('error', 'Sesi tidak valid');
+        }
+
+        // Validate: collector can only process payments for assigned customers
+        $invoice->load('customer');
+        if ($invoice->customer->collector_id !== $collector->id) {
+            return redirect()->route('collector.invoices')
+                ->with('error', 'Anda tidak memiliki akses ke pelanggan ini');
+        }
+
         $request->validate([
             'amount' => 'required|numeric|min:1',
             'payment_method' => 'required|in:cash,transfer',
         ]);
 
-        $collector = Collector::find(session('collector_id'));
-        
         // Calculate commission
         $commissionRate = $collector->commission_rate ?? 2; // 2% default
         $commission = ($request->amount * $commissionRate) / 100;
@@ -162,9 +216,13 @@ class CollectorController extends Controller
     public function history(Request $request)
     {
         $collector = Collector::find(session('collector_id'));
-        
+
+        if (!$collector) {
+            return redirect()->route('collector.login')->with('error', 'Sesi tidak valid');
+        }
+
         $query = Payment::with('invoice.customer')
-            ->where('collector_id', $collector->id ?? 0);
+            ->where('collector_id', $collector->id);
 
         if ($request->filled('date')) {
             $query->whereDate('created_at', $request->date);
@@ -172,11 +230,11 @@ class CollectorController extends Controller
 
         $payments = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        $totalCollected = Payment::where('collector_id', $collector->id ?? 0)
+        $totalCollected = Payment::where('collector_id', $collector->id)
             ->whereMonth('created_at', now()->month)
             ->sum('amount');
 
-        $totalCommission = Payment::where('collector_id', $collector->id ?? 0)
+        $totalCommission = Payment::where('collector_id', $collector->id)
             ->whereMonth('created_at', now()->month)
             ->sum('commission');
 
@@ -186,6 +244,28 @@ class CollectorController extends Controller
     public function profile()
     {
         $collector = Collector::find(session('collector_id'));
-        return view('collector.profile', compact('collector'));
+
+        if (!$collector) {
+            return redirect()->route('collector.login')->with('error', 'Sesi tidak valid');
+        }
+
+        // Get collector stats
+        $customerIds = \App\Models\Customer::where('collector_id', $collector->id)->pluck('id');
+
+        $stats = [
+            'total_customers' => $customerIds->count(),
+            'total_collected' => Payment::where('collector_id', $collector->id)->sum('amount'),
+            'total_commission' => Payment::where('collector_id', $collector->id)->sum('commission'),
+            'this_month_collected' => Payment::where('collector_id', $collector->id)
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->sum('amount'),
+            'this_month_commission' => Payment::where('collector_id', $collector->id)
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->sum('commission'),
+        ];
+
+        return view('collector.profile', compact('collector', 'stats'));
     }
 }

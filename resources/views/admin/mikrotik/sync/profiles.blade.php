@@ -34,7 +34,23 @@
 
             <form action="{{ route('admin.mikrotik.sync.profiles.save') }}" method="POST">
                 @csrf
-                
+                @if(isset($routerId))
+                    <input type="hidden" name="router_id" value="{{ $routerId }}">
+                @endif
+
+                <!-- Router Info -->
+                @if(isset($selectedRouter))
+                    <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-server text-blue-600 mr-3"></i>
+                            <div>
+                                <span class="font-medium text-blue-800">Router: {{ $selectedRouter->name }}</span>
+                                <span class="text-blue-600 text-sm ml-2">({{ $selectedRouter->host }})</span>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="bg-white rounded-lg shadow overflow-hidden">
                     <div class="p-4 bg-gray-50 border-b">
                         <h3 class="font-semibold text-gray-700">{{ count($mikrotikProfiles) }} PPPoE Profiles ditemukan</h3>

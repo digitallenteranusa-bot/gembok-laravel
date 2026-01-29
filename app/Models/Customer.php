@@ -17,6 +17,8 @@ class Customer extends Model
         'email',
         'address',
         'package_id',
+        'mikrotik_router_id',
+        'collector_id',
         'status',
         'total_debt',
         'unpaid_invoices_count',
@@ -39,6 +41,29 @@ class Customer extends Model
     public function package()
     {
         return $this->belongsTo(Package::class);
+    }
+
+    public function mikrotikRouter()
+    {
+        return $this->belongsTo(MikrotikRouter::class);
+    }
+
+    /**
+     * Get the router for this customer (or default if not assigned)
+     */
+    public function getRouter(): ?MikrotikRouter
+    {
+        return $this->mikrotikRouter ?? MikrotikRouter::getDefault();
+    }
+
+    public function collector()
+    {
+        return $this->belongsTo(Collector::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasManyThrough(Payment::class, Invoice::class);
     }
 
     public function invoices()

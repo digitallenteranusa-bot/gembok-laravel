@@ -3,19 +3,17 @@
 namespace App\Listeners;
 
 use App\Events\CustomerSuspended;
-use App\Services\MikrotikService;
+use App\Services\MikrotikServiceFactory;
 use App\Services\WhatsAppService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
 class DisconnectCustomerOnSuspension implements ShouldQueue
 {
-    protected $mikrotik;
     protected $whatsapp;
 
-    public function __construct(MikrotikService $mikrotik, WhatsAppService $whatsapp)
+    public function __construct(WhatsAppService $whatsapp)
     {
-        $this->mikrotik = $mikrotik;
         $this->whatsapp = $whatsapp;
     }
 
@@ -24,10 +22,13 @@ class DisconnectCustomerOnSuspension implements ShouldQueue
         $customer = $event->customer;
 
         try {
-            // Disconnect from Mikrotik
-            if ($customer->pppoe_username && $this->mikrotik->isConnected()) {
-                $this->mikrotik->disconnectPPPoE($customer->pppoe_username);
-                $this->mikrotik->deletePPPoESecret($customer->pppoe_username);
+            // Disconnect from Mikrotik using customer's router
+            if ($customer->pppoe_username) {
+                $mikrotik = MikrotikServiceFactory::forCustomer($customer);
+                if ($mikrotik->isConnected()) {
+                    $mikrotik->disconnectPPPoE($customer->pppoe_username);
+                    $mikrotik->deletePPPoESecret($customer->pppoe_username);
+                }
             }
 
             // Send suspension notice via WhatsApp

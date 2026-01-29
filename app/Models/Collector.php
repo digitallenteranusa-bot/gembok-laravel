@@ -35,4 +35,34 @@ class Collector extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
+    }
+
+    /**
+     * Get total collection amount for a period
+     */
+    public function getTotalCollection($startDate = null, $endDate = null)
+    {
+        $query = $this->payments();
+
+        if ($startDate) {
+            $query->where('paid_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->where('paid_at', '<=', $endDate);
+        }
+
+        return $query->sum('amount');
+    }
+
+    /**
+     * Get total debt from assigned customers
+     */
+    public function getTotalCustomerDebt()
+    {
+        return $this->customers()->sum('total_debt');
+    }
 }

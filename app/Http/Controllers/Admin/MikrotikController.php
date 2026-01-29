@@ -3,22 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MikrotikRouter;
 use App\Services\MikrotikService;
+use App\Services\MikrotikServiceFactory;
 use Illuminate\Http\Request;
 
 class MikrotikController extends Controller
 {
-    protected $mikrotik;
-
-    public function __construct(MikrotikService $mikrotik)
+    protected function getMikrotikService(?int $routerId = null): MikrotikService
     {
-        $this->mikrotik = $mikrotik;
+        return MikrotikServiceFactory::forRouterId($routerId);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $connected = $this->mikrotik->isConnected();
-        
+        $routerId = $request->input('router_id');
+        $routers = MikrotikRouter::enabled()->orderBy('name')->get();
+        $selectedRouter = $routerId ? MikrotikRouter::find($routerId) : MikrotikRouter::getDefault();
+
+        $mikrotik = $this->getMikrotikService($routerId);
+        $connected = $mikrotik->isConnected();
+
         if (!$connected) {
             return view('admin.mikrotik.index', [
                 'connected' => false,
@@ -35,20 +40,22 @@ class MikrotikController extends Controller
                     'memory_usage' => 0,
                     'uptime' => 'N/A',
                 ],
+                'routers' => $routers,
+                'selectedRouter' => $selectedRouter,
             ]);
         }
 
-        $pppoeActive = $this->mikrotik->getPPPoEActive();
-        $hotspotActive = $this->mikrotik->getHotspotActive();
-        $systemResource = $this->mikrotik->getSystemResource();
-        $interfaces = $this->mikrotik->getInterfaces();
+        $pppoeActive = $mikrotik->getPPPoEActive();
+        $hotspotActive = $mikrotik->getHotspotActive();
+        $systemResource = $mikrotik->getSystemResource();
+        $interfaces = $mikrotik->getInterfaces();
 
         $stats = [
             'pppoe_online' => count($pppoeActive),
             'hotspot_online' => count($hotspotActive),
             'total_online' => count($pppoeActive) + count($hotspotActive),
             'cpu_load' => $systemResource['cpu-load'] ?? 0,
-            'memory_usage' => isset($systemResource['free-memory'], $systemResource['total-memory']) 
+            'memory_usage' => isset($systemResource['free-memory'], $systemResource['total-memory'])
                 ? round((($systemResource['total-memory'] - $systemResource['free-memory']) / $systemResource['total-memory']) * 100, 2)
                 : 0,
             'uptime' => $systemResource['uptime'] ?? 'N/A',
@@ -60,19 +67,25 @@ class MikrotikController extends Controller
             'hotspotActive',
             'systemResource',
             'interfaces',
-            'stats'
+            'stats',
+            'routers',
+            'selectedRouter'
         ));
     }
 
-    public function pppoeActive()
+    public function pppoeActive(Request $request)
     {
-        $active = $this->mikrotik->getPPPoEActive();
+        $routerId = $request->input('router_id');
+        $mikrotik = $this->getMikrotikService($routerId);
+        $active = $mikrotik->getPPPoEActive();
         return response()->json($active);
     }
 
-    public function hotspotActive()
+    public function hotspotActive(Request $request)
     {
-        $active = $this->mikrotik->getHotspotActive();
+        $routerId = $request->input('router_id');
+        $mikrotik = $this->getMikrotikService($routerId);
+        $active = $mikrotik->getHotspotActive();
         return response()->json($active);
     }
 
@@ -80,9 +93,12 @@ class MikrotikController extends Controller
     {
         $username = $request->input('username');
         $type = $request->input('type', 'pppoe');
+        $routerId = $request->input('router_id');
+
+        $mikrotik = $this->getMikrotikService($routerId);
 
         if ($type === 'pppoe') {
-            $result = $this->mikrotik->disconnectPPPoE($username);
+            $result = $mikrotik->disconnectPPPoE($username);
         } else {
             // Implement hotspot disconnect if needed
             $result = false;
@@ -101,25 +117,31 @@ class MikrotikController extends Controller
         ], 500);
     }
 
-    public function systemResource()
+    public function systemResource(Request $request)
     {
-        $resource = $this->mikrotik->getSystemResource();
+        $routerId = $request->input('router_id');
+        $mikrotik = $this->getMikrotikService($routerId);
+        $resource = $mikrotik->getSystemResource();
         return response()->json($resource);
     }
 
     public function trafficStats(Request $request)
     {
         $interface = $request->input('interface', 'ether1');
-        $stats = $this->mikrotik->getTrafficStats($interface);
+        $routerId = $request->input('router_id');
+        $mikrotik = $this->getMikrotikService($routerId);
+        $stats = $mikrotik->getTrafficStats($interface);
         return response()->json($stats);
     }
 
-    public function testConnection()
+    public function testConnection(Request $request)
     {
-        $connected = $this->mikrotik->isConnected();
-        
+        $routerId = $request->input('router_id');
+        $mikrotik = $this->getMikrotikService($routerId);
+        $connected = $mikrotik->isConnected();
+
         if ($connected) {
-            $resource = $this->mikrotik->getSystemResource();
+            $resource = $mikrotik->getSystemResource();
             return response()->json([
                 'success' => true,
                 'message' => 'Connected to Mikrotik successfully',

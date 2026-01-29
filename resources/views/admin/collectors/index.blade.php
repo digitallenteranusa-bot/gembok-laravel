@@ -52,6 +52,7 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collector</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pelanggan</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -75,6 +76,11 @@
                                         <div class="text-sm text-gray-500">{{ $collector->email ?? '-' }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                                            {{ $collector->customers_count ?? $collector->customers()->count() }} pelanggan
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $collector->commission_rate }}%
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -85,6 +91,9 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex items-center justify-end space-x-2">
+                                            <a href="{{ route('admin.collectors.report', $collector) }}" class="text-green-600 hover:text-green-900" title="Laporan">
+                                                <i class="fas fa-chart-bar"></i>
+                                            </a>
                                             <a href="{{ route('admin.collectors.show', $collector) }}" class="text-blue-600 hover:text-blue-900" title="View">
                                                 <i class="fas fa-eye"></i>
                                             </a>
@@ -103,7 +112,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                                         <i class="fas fa-hand-holding-usd text-4xl mb-4 text-gray-300"></i>
                                         <p>No collectors found</p>
                                     </td>

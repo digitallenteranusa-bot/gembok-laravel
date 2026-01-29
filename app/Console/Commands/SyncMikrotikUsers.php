@@ -3,36 +3,112 @@
 namespace App\Console\Commands;
 
 use App\Models\Customer;
-use App\Services\MikrotikService;
+use App\Models\MikrotikRouter;
+use App\Services\MikrotikServiceFactory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class SyncMikrotikUsers extends Command
 {
-    protected $signature = 'mikrotik:sync-users {--create : Create missing PPPoE secrets} {--update : Update existing secrets}';
+    protected $signature = 'mikrotik:sync-users
+        {--create : Create missing PPPoE secrets}
+        {--update : Update existing secrets}
+        {--router= : Router ID to sync (use "all" for all routers)}';
+
     protected $description = 'Sync customers with Mikrotik PPPoE secrets';
-
-    protected $mikrotik;
-
-    public function __construct(MikrotikService $mikrotik)
-    {
-        parent::__construct();
-        $this->mikrotik = $mikrotik;
-    }
 
     public function handle()
     {
-        if (!$this->mikrotik->isConnected()) {
+        $routerOption = $this->option('router');
+
+        // Determine which routers to sync
+        if ($routerOption === 'all') {
+            $routers = MikrotikRouter::enabled()->get();
+            if ($routers->isEmpty()) {
+                $this->warn('No enabled routers found. Using default configuration.');
+                return $this->syncForRouter(null);
+            }
+
+            $totalCreated = 0;
+            $totalUpdated = 0;
+            $totalErrors = 0;
+
+            foreach ($routers as $router) {
+                $this->info("\n=== Syncing Router: {$router->name} ({$router->host}) ===");
+                $result = $this->syncForRouter($router);
+                $totalCreated += $result['created'];
+                $totalUpdated += $result['updated'];
+                $totalErrors += $result['errors'];
+            }
+
+            $this->newLine();
+            $this->info("=== Total Results ===");
+            $this->table(
+                ['Action', 'Count'],
+                [
+                    ['Created', $totalCreated],
+                    ['Updated', $totalUpdated],
+                    ['Errors', $totalErrors],
+                ]
+            );
+
+            return Command::SUCCESS;
+        }
+
+        // Single router or default
+        $router = null;
+        if ($routerOption) {
+            $router = MikrotikRouter::find($routerOption);
+            if (!$router) {
+                $this->error("Router with ID {$routerOption} not found!");
+                return Command::FAILURE;
+            }
+            $this->info("Syncing Router: {$router->name} ({$router->host})");
+        }
+
+        $result = $this->syncForRouter($router);
+
+        $this->newLine(2);
+        $this->info("Sync completed!");
+        $this->table(
+            ['Action', 'Count'],
+            [
+                ['Created', $result['created']],
+                ['Updated', $result['updated']],
+                ['Errors', $result['errors']],
+            ]
+        );
+
+        return Command::SUCCESS;
+    }
+
+    protected function syncForRouter(?MikrotikRouter $router): array
+    {
+        $mikrotik = $router
+            ? MikrotikServiceFactory::forRouter($router)
+            : MikrotikServiceFactory::default();
+
+        if (!$mikrotik->isConnected()) {
             $this->error('Failed to connect to Mikrotik!');
-            return Command::FAILURE;
+            return ['created' => 0, 'updated' => 0, 'errors' => 0];
         }
 
         $this->info('Connected to Mikrotik successfully.');
 
-        $customers = Customer::where('status', 'active')
+        // Build customer query
+        $query = Customer::where('status', 'active')
             ->whereNotNull('pppoe_username')
-            ->with('package')
-            ->get();
+            ->with('package');
+
+        // Filter by router if specified
+        if ($router) {
+            $query->where(function ($q) use ($router) {
+                $q->where('mikrotik_router_id', $router->id)
+                  ->orWhereNull('mikrotik_router_id');
+            });
+        }
+
+        $customers = $query->get();
 
         $this->info("Found {$customers->count()} active customers with PPPoE credentials.");
 
@@ -53,14 +129,14 @@ class SyncMikrotikUsers extends Command
                 ];
 
                 if ($this->option('create')) {
-                    $result = $this->mikrotik->createPPPoESecret($data);
+                    $result = $mikrotik->createPPPoESecret($data);
                     if ($result) {
                         $created++;
                     }
                 }
 
                 if ($this->option('update')) {
-                    $result = $this->mikrotik->updatePPPoESecret($customer->pppoe_username, $data);
+                    $result = $mikrotik->updatePPPoESecret($customer->pppoe_username, $data);
                     if ($result) {
                         $updated++;
                     }
@@ -70,6 +146,7 @@ class SyncMikrotikUsers extends Command
                 $errors++;
                 Log::error('Mikrotik sync error', [
                     'customer_id' => $customer->id,
+                    'router_id' => $router?->id,
                     'error' => $e->getMessage()
                 ]);
             }
@@ -78,18 +155,11 @@ class SyncMikrotikUsers extends Command
         }
 
         $bar->finish();
-        $this->newLine(2);
 
-        $this->info("Sync completed!");
-        $this->table(
-            ['Action', 'Count'],
-            [
-                ['Created', $created],
-                ['Updated', $updated],
-                ['Errors', $errors],
-            ]
-        );
-
-        return Command::SUCCESS;
+        return [
+            'created' => $created,
+            'updated' => $updated,
+            'errors' => $errors,
+        ];
     }
 }

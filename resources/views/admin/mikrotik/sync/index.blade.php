@@ -10,10 +10,35 @@
         @include('admin.partials.topbar')
         
         <main class="p-6">
-            <div class="mb-6">
-                <h1 class="text-2xl font-bold text-gray-900">Sync Mikrotik</h1>
-                <p class="text-gray-600">Import data dari Mikrotik ke {{ companyName() }}</p>
+            <div class="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Sync Mikrotik</h1>
+                    <p class="text-gray-600">Import data dari Mikrotik ke {{ companyName() }}</p>
+                </div>
+                <!-- Router Selector -->
+                @if(isset($routers) && $routers->count() > 0)
+                    <div class="flex items-center space-x-3">
+                        <label class="text-sm text-gray-600">Router:</label>
+                        <select id="router-selector" onchange="changeRouter(this.value)"
+                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                            @foreach($routers as $router)
+                                <option value="{{ $router->id }}" {{ ($selectedRouter && $selectedRouter->id == $router->id) ? 'selected' : '' }}>
+                                    {{ $router->name }}
+                                    @if($router->is_default) (Default) @endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
             </div>
+
+            <script>
+            function changeRouter(routerId) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('router_id', routerId);
+                window.location.href = url.toString();
+            }
+            </script>
 
             @if(session('success'))
                 <div class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
@@ -136,7 +161,7 @@
                                 <li>• {{ $stats['pppoe_profiles'] }} profiles di Mikrotik</li>
                                 <li>• {{ $stats['local_packages'] }} packages di lokal</li>
                             </ul>
-                            <a href="{{ route('admin.mikrotik.sync.profiles') }}" 
+                            <a href="{{ route('admin.mikrotik.sync.profiles', ['router_id' => $selectedRouter->id ?? '']) }}"
                                class="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                                 Sync Profiles
                             </a>
@@ -158,7 +183,7 @@
                                 <li>• {{ $stats['pppoe_secrets'] }} secrets di Mikrotik</li>
                                 <li>• Preview sebelum import</li>
                             </ul>
-                            <a href="{{ route('admin.mikrotik.sync.secrets') }}" 
+                            <a href="{{ route('admin.mikrotik.sync.secrets', ['router_id' => $selectedRouter->id ?? '']) }}"
                                class="block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                                 Import PPPoE
                             </a>
@@ -180,7 +205,7 @@
                                 <li>• {{ $stats['hotspot_users'] }} users di Mikrotik</li>
                                 <li>• Preview sebelum import</li>
                             </ul>
-                            <a href="{{ route('admin.mikrotik.sync.hotspot') }}" 
+                            <a href="{{ route('admin.mikrotik.sync.hotspot', ['router_id' => $selectedRouter->id ?? '']) }}"
                                class="block w-full text-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">
                                 Import Hotspot
                             </a>

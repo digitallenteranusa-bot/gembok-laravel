@@ -123,11 +123,53 @@
                             @enderror
                         </div>
 
+                        <!-- Collector -->
+                        <div class="md:col-span-2">
+                            <label for="collector_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-user-tie mr-2 text-green-600"></i>Collector / Penagih
+                            </label>
+                            <select name="collector_id" id="collector_id"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent @error('collector_id') border-red-500 @enderror">
+                                <option value="">-- Pilih Collector --</option>
+                                @foreach($collectors as $collector)
+                                    <option value="{{ $collector->id }}" {{ old('collector_id') == $collector->id ? 'selected' : '' }}>
+                                        {{ $collector->name }}
+                                        @if($collector->area) - {{ $collector->area }} @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('collector_id')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-1 text-xs text-gray-500">Pilih collector yang bertanggung jawab untuk pelanggan ini</p>
+                        </div>
+
                         <!-- PPPoE Section -->
                         <div class="md:col-span-2 border-t pt-6 mt-2">
                             <h3 class="text-lg font-semibold text-gray-800 mb-4">
                                 <i class="fas fa-network-wired mr-2 text-cyan-600"></i>PPPoE Configuration (Mikrotik)
                             </h3>
+                        </div>
+
+                        <!-- Mikrotik Router -->
+                        <div>
+                            <label for="mikrotik_router_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-server mr-2 text-cyan-600"></i>Mikrotik Router
+                            </label>
+                            <select name="mikrotik_router_id" id="mikrotik_router_id"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent @error('mikrotik_router_id') border-red-500 @enderror">
+                                <option value="">-- Default Router --</option>
+                                @foreach($routers as $router)
+                                    <option value="{{ $router->id }}" {{ old('mikrotik_router_id') == $router->id ? 'selected' : '' }}>
+                                        {{ $router->name }} ({{ $router->host }})
+                                        @if($router->is_default) - Default @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('mikrotik_router_id')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-1 text-xs text-gray-500">Pilih router untuk customer ini</p>
                         </div>
 
                         <!-- PPPoE Username -->
@@ -144,7 +186,7 @@
                         </div>
 
                         <!-- PPPoE Password -->
-                        <div>
+                        <div class="md:col-span-2">
                             <label for="pppoe_password" class="block text-sm font-medium text-gray-700 mb-2">
                                 <i class="fas fa-key mr-2 text-cyan-600"></i>PPPoE Password
                             </label>

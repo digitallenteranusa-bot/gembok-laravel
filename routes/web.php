@@ -89,6 +89,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Collector Management
         Route::resource('collectors', CollectorController::class);
         Route::get('/collectors/{collector}/payments', [CollectorController::class, 'payments'])->name('collectors.payments');
+        Route::get('/collectors/{collector}/report', [CollectorController::class, 'report'])->name('collectors.report');
+        Route::get('/collectors/{collector}/export', [CollectorController::class, 'exportReport'])->name('collectors.export');
         
         // Agent Management
         Route::resource('agents', AgentController::class);
@@ -163,7 +165,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/system-resource', [\App\Http\Controllers\Admin\MikrotikController::class, 'systemResource'])->name('system.resource');
             Route::get('/traffic-stats', [\App\Http\Controllers\Admin\MikrotikController::class, 'trafficStats'])->name('traffic.stats');
             Route::get('/test-connection', [\App\Http\Controllers\Admin\MikrotikController::class, 'testConnection'])->name('test');
-            
+
+            // Router Management
+            Route::prefix('routers')->name('routers.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'index'])->name('index');
+                Route::get('/create', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'create'])->name('create');
+                Route::post('/', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'store'])->name('store');
+                Route::get('/{router}/edit', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'edit'])->name('edit');
+                Route::put('/{router}', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'update'])->name('update');
+                Route::delete('/{router}', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'destroy'])->name('destroy');
+                Route::post('/{router}/test', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'testConnection'])->name('test');
+                Route::post('/{router}/set-default', [\App\Http\Controllers\Admin\MikrotikRouterController::class, 'setDefault'])->name('set-default');
+            });
+
             // Sync Routes
             Route::prefix('sync')->name('sync.')->group(function () {
                 Route::get('/', [\App\Http\Controllers\Admin\MikrotikSyncController::class, 'index'])->name('index');

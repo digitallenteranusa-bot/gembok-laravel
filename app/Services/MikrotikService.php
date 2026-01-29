@@ -6,16 +6,20 @@ use RouterOS\Client;
 use RouterOS\Query;
 use Illuminate\Support\Facades\Log;
 use App\Models\IntegrationSetting;
+use App\Models\MikrotikRouter;
 
 class MikrotikService
 {
     protected $client;
     protected $connected = false;
+    protected $router = null;
 
-    public function __construct(array $config = null)
+    public function __construct(array $config = null, ?MikrotikRouter $router = null)
     {
+        $this->router = $router;
+
         try {
-            // If config provided directly (for testing), use it
+            // If config provided directly, use it
             if ($config) {
                 $host = $config['host'] ?? null;
                 $username = $config['username'] ?? null;
@@ -23,31 +27,43 @@ class MikrotikService
                 $port = (int) ($config['port'] ?? 8728);
                 $enabled = true;
             } else {
-                // Try to get config from database first
-                $setting = IntegrationSetting::mikrotik();
-                
-                if ($setting && $setting->isActive()) {
-                    $host = $setting->getConfig('host');
-                    $username = $setting->getConfig('username');
-                    $password = $setting->getConfig('password');
-                    $port = (int) $setting->getConfig('port', 8728);
-                    $enabled = true;
+                // Try to get default router from mikrotik_routers table
+                $defaultRouter = MikrotikRouter::getDefault();
+
+                if ($defaultRouter) {
+                    $this->router = $defaultRouter;
+                    $host = $defaultRouter->host;
+                    $username = $defaultRouter->username;
+                    $password = $defaultRouter->password;
+                    $port = (int) $defaultRouter->port;
+                    $enabled = $defaultRouter->enabled;
                 } else {
-                    // Fallback to config file
-                    $host = config('services.mikrotik.host');
-                    $username = config('services.mikrotik.username');
-                    $password = config('services.mikrotik.password');
-                    $port = (int) config('services.mikrotik.port', 8728);
-                    $enabled = config('services.mikrotik.enabled', false);
+                    // Try to get config from IntegrationSetting
+                    $setting = IntegrationSetting::mikrotik();
+
+                    if ($setting && $setting->isActive()) {
+                        $host = $setting->getConfig('host');
+                        $username = $setting->getConfig('username');
+                        $password = $setting->getConfig('password');
+                        $port = (int) $setting->getConfig('port', 8728);
+                        $enabled = true;
+                    } else {
+                        // Fallback to config file
+                        $host = config('services.mikrotik.host');
+                        $username = config('services.mikrotik.username');
+                        $password = config('services.mikrotik.password');
+                        $port = (int) config('services.mikrotik.port', 8728);
+                        $enabled = config('services.mikrotik.enabled', false);
+                    }
                 }
             }
-            
+
             // Skip connection if not enabled or host not configured
             if (!$enabled || empty($host)) {
                 $this->connected = false;
                 return;
             }
-            
+
             $this->client = new Client([
                 'host' => $host,
                 'user' => $username,
@@ -59,6 +75,22 @@ class MikrotikService
             Log::error('Mikrotik connection failed: ' . $e->getMessage());
             $this->connected = false;
         }
+    }
+
+    /**
+     * Get the router model associated with this service
+     */
+    public function getRouter(): ?MikrotikRouter
+    {
+        return $this->router;
+    }
+
+    /**
+     * Get the router ID if available
+     */
+    public function getRouterId(): ?int
+    {
+        return $this->router?->id;
     }
     
     public function connect()

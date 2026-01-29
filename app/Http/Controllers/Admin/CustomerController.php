@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Events\CustomerSuspended;
+use App\Models\MikrotikRouter;
+use App\Models\Collector;
 use App\Services\MikrotikService;
+use App\Services\MikrotikServiceFactory;
 use App\Exports\CustomersExport;
 use App\Imports\CustomersImport;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
-    protected $mikrotik;
-
     public function index(Request $request)
     {
         $query = \App\Models\Customer::with('package');
@@ -47,7 +48,9 @@ class CustomerController extends Controller
     public function create()
     {
         $packages = \App\Models\Package::where('is_active', true)->get();
-        return view('admin.customers.create', compact('packages'));
+        $routers = MikrotikRouter::enabled()->orderBy('name')->get();
+        $collectors = Collector::where('status', 'active')->orderBy('name')->get();
+        return view('admin.customers.create', compact('packages', 'routers', 'collectors'));
     }
 
     public function store(Request $request)
@@ -59,6 +62,8 @@ class CustomerController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'package_id' => 'nullable|exists:packages,id',
+            'mikrotik_router_id' => 'nullable|exists:mikrotik_routers,id',
+            'collector_id' => 'nullable|exists:collectors,id',
             'status' => 'required|in:active,inactive,suspended',
             'pppoe_username' => 'nullable|string|max:255',
             'pppoe_password' => 'nullable|string|max:255',
@@ -72,7 +77,7 @@ class CustomerController extends Controller
         $mikrotikMessage = '';
         if (!empty($validated['pppoe_username']) && $validated['status'] === 'active') {
             try {
-                $mikrotik = app(MikrotikService::class);
+                $mikrotik = MikrotikServiceFactory::forCustomer($customer);
                 if ($mikrotik->isConnected()) {
                     $package = $customer->package;
                     $result = $mikrotik->createPPPoESecret([
@@ -81,7 +86,7 @@ class CustomerController extends Controller
                         'profile' => $package->pppoe_profile ?? 'default',
                         'comment' => "Customer: {$customer->name} (ID: {$customer->id})",
                     ]);
-                    
+
                     if ($result) {
                         $mikrotikMessage = ' PPPoE Secret berhasil dibuat di Mikrotik.';
                     } else {
@@ -118,7 +123,9 @@ class CustomerController extends Controller
     public function edit(\App\Models\Customer $customer)
     {
         $packages = \App\Models\Package::where('is_active', true)->get();
-        return view('admin.customers.edit', compact('customer', 'packages'));
+        $routers = MikrotikRouter::enabled()->orderBy('name')->get();
+        $collectors = Collector::where('status', 'active')->orderBy('name')->get();
+        return view('admin.customers.edit', compact('customer', 'packages', 'routers', 'collectors'));
     }
 
     public function update(Request $request, \App\Models\Customer $customer)
@@ -130,6 +137,8 @@ class CustomerController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'package_id' => 'nullable|exists:packages,id',
+            'mikrotik_router_id' => 'nullable|exists:mikrotik_routers,id',
+            'collector_id' => 'nullable|exists:collectors,id',
             'status' => 'required|in:active,inactive,suspended',
             'pppoe_username' => 'nullable|string|max:255',
             'pppoe_password' => 'nullable|string|max:255',
@@ -146,7 +155,7 @@ class CustomerController extends Controller
         // Sync with Mikrotik if PPPoE credentials changed (lazy load)
         if ($customer->pppoe_username && $validated['status'] === 'active') {
             try {
-                $mikrotik = app(MikrotikService::class);
+                $mikrotik = MikrotikServiceFactory::forCustomer($customer);
                 if ($mikrotik->isConnected()) {
                     $mikrotik->createPPPoESecret([
                         'username' => $customer->pppoe_username,

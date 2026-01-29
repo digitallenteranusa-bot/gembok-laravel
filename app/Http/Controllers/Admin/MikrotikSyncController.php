@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MikrotikRouter;
 use App\Services\MikrotikService;
+use App\Services\MikrotikServiceFactory;
 use App\Models\Customer;
 use App\Models\Package;
 use Illuminate\Http\Request;
@@ -12,38 +14,51 @@ use Illuminate\Support\Facades\DB;
 
 class MikrotikSyncController extends Controller
 {
-    protected $mikrotik;
-
-    public function __construct(MikrotikService $mikrotik)
+    protected function getMikrotikService(?int $routerId = null): MikrotikService
     {
-        $this->mikrotik = $mikrotik;
+        return MikrotikServiceFactory::forRouterId($routerId);
+    }
+
+    protected function getRouterData(Request $request): array
+    {
+        $routerId = $request->input('router_id');
+        $routers = MikrotikRouter::enabled()->orderBy('name')->get();
+        $selectedRouter = $routerId ? MikrotikRouter::find($routerId) : MikrotikRouter::getDefault();
+
+        return [
+            'routerId' => $routerId,
+            'routers' => $routers,
+            'selectedRouter' => $selectedRouter,
+        ];
     }
 
     /**
      * Main sync dashboard
      */
-    public function index()
+    public function index(Request $request)
     {
-        $connected = $this->mikrotik->isConnected();
-        
+        $routerData = $this->getRouterData($request);
+        $mikrotik = $this->getMikrotikService($routerData['routerId']);
+        $connected = $mikrotik->isConnected();
+
         if (!$connected) {
-            return view('admin.mikrotik.sync.index', [
+            return view('admin.mikrotik.sync.index', array_merge([
                 'connected' => false,
                 'error' => 'Tidak dapat terhubung ke Mikrotik. Silakan cek konfigurasi.',
-            ]);
+            ], $routerData));
         }
 
         // Get counts from Mikrotik
-        $pppoeSecrets = $this->mikrotik->getPPPoESecrets();
-        $pppoeProfiles = $this->mikrotik->getPPPoEProfiles();
-        $hotspotUsers = $this->mikrotik->getHotspotUsers();
-        $hotspotProfiles = $this->mikrotik->getHotspotProfiles();
+        $pppoeSecrets = $mikrotik->getPPPoESecrets();
+        $pppoeProfiles = $mikrotik->getPPPoEProfiles();
+        $hotspotUsers = $mikrotik->getHotspotUsers();
+        $hotspotProfiles = $mikrotik->getHotspotProfiles();
 
         // Get counts from GEMBOK LARA
         $localCustomers = Customer::count();
         $localPackages = Package::count();
 
-        return view('admin.mikrotik.sync.index', [
+        return view('admin.mikrotik.sync.index', array_merge([
             'connected' => true,
             'stats' => [
                 'pppoe_secrets' => count($pppoeSecrets),
@@ -53,20 +68,23 @@ class MikrotikSyncController extends Controller
                 'local_customers' => $localCustomers,
                 'local_packages' => $localPackages,
             ],
-        ]);
+        ], $routerData));
     }
 
     /**
      * Show PPPoE Profiles sync page
      */
-    public function profiles()
+    public function profiles(Request $request)
     {
-        if (!$this->mikrotik->isConnected()) {
-            return redirect()->route('admin.mikrotik.sync.index')
+        $routerData = $this->getRouterData($request);
+        $mikrotik = $this->getMikrotikService($routerData['routerId']);
+
+        if (!$mikrotik->isConnected()) {
+            return redirect()->route('admin.mikrotik.sync.index', ['router_id' => $routerData['routerId']])
                 ->with('error', 'Tidak dapat terhubung ke Mikrotik');
         }
 
-        $mikrotikProfiles = $this->mikrotik->getPPPoEProfiles();
+        $mikrotikProfiles = $mikrotik->getPPPoEProfiles();
         $localPackages = Package::all();
 
         // Check which profiles are already mapped
@@ -76,16 +94,16 @@ class MikrotikSyncController extends Controller
                 ->first();
             $profile['mapped_to'] = $mapped ? $mapped->name : null;
             $profile['mapped_package_id'] = $mapped ? $mapped->id : null;
-            
+
             // Parse rate limit
-            $speeds = $this->mikrotik->parseRateLimit($profile['rate_limit']);
+            $speeds = $mikrotik->parseRateLimit($profile['rate_limit']);
             $profile['speed_mbps'] = max($speeds['upload'], $speeds['download']);
         }
 
-        return view('admin.mikrotik.sync.profiles', [
+        return view('admin.mikrotik.sync.profiles', array_merge([
             'mikrotikProfiles' => $mikrotikProfiles,
             'localPackages' => $localPackages,
-        ]);
+        ], $routerData));
     }
 
     /**
@@ -96,6 +114,9 @@ class MikrotikSyncController extends Controller
         $mappings = $request->input('mappings', []);
         $createNew = $request->input('create_new', []);
         $prices = $request->input('prices', []);
+        $routerId = $request->input('router_id');
+
+        $mikrotik = $this->getMikrotikService($routerId);
 
         $synced = 0;
         $created = 0;
@@ -114,15 +135,15 @@ class MikrotikSyncController extends Controller
             }
 
             // Create new packages from profiles
-            $mikrotikProfiles = collect($this->mikrotik->getPPPoEProfiles())
+            $mikrotikProfiles = collect($mikrotik->getPPPoEProfiles())
                 ->keyBy('name');
 
             foreach ($createNew as $profileName) {
                 $profile = $mikrotikProfiles->get($profileName);
                 if ($profile) {
-                    $speeds = $this->mikrotik->parseRateLimit($profile['rate_limit']);
+                    $speeds = $mikrotik->parseRateLimit($profile['rate_limit']);
                     $speedMbps = max($speeds['upload'], $speeds['download']);
-                    
+
                     Package::create([
                         'name' => $profileName,
                         'speed' => $speedMbps > 0 ? $speedMbps . ' Mbps' : 'Unlimited',
@@ -138,7 +159,7 @@ class MikrotikSyncController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.mikrotik.sync.profiles')
+            return redirect()->route('admin.mikrotik.sync.profiles', ['router_id' => $routerId])
                 ->with('success', "Berhasil sync {$synced} profile dan membuat {$created} paket baru");
 
         } catch (\Exception $e) {
@@ -153,14 +174,17 @@ class MikrotikSyncController extends Controller
      */
     public function previewSecrets(Request $request)
     {
-        if (!$this->mikrotik->isConnected()) {
-            return redirect()->route('admin.mikrotik.sync.index')
+        $routerData = $this->getRouterData($request);
+        $mikrotik = $this->getMikrotikService($routerData['routerId']);
+
+        if (!$mikrotik->isConnected()) {
+            return redirect()->route('admin.mikrotik.sync.index', ['router_id' => $routerData['routerId']])
                 ->with('error', 'Tidak dapat terhubung ke Mikrotik');
         }
 
-        $secrets = $this->mikrotik->getPPPoESecrets();
+        $secrets = $mikrotik->getPPPoESecrets();
         $localPackages = Package::all()->keyBy('pppoe_profile');
-        
+
         // Get existing PPPoE usernames
         $existingUsernames = Customer::whereNotNull('pppoe_username')
             ->pluck('pppoe_username')
@@ -169,7 +193,7 @@ class MikrotikSyncController extends Controller
         // Process secrets
         $toImport = [];
         $existing = [];
-        
+
         foreach ($secrets as $secret) {
             // Skip non-pppoe services
             if ($secret['service'] !== 'pppoe' && $secret['service'] !== 'any') {
@@ -178,7 +202,7 @@ class MikrotikSyncController extends Controller
 
             $secret['exists'] = in_array($secret['name'], $existingUsernames);
             $secret['package'] = $localPackages->get($secret['profile']);
-            
+
             if ($secret['exists']) {
                 $existing[] = $secret;
             } else {
@@ -186,12 +210,12 @@ class MikrotikSyncController extends Controller
             }
         }
 
-        return view('admin.mikrotik.sync.secrets', [
+        return view('admin.mikrotik.sync.secrets', array_merge([
             'toImport' => $toImport,
             'existing' => $existing,
             'localPackages' => Package::all(),
             'totalSecrets' => count($secrets),
-        ]);
+        ], $routerData));
     }
 
     /**
@@ -202,14 +226,17 @@ class MikrotikSyncController extends Controller
         $selectedSecrets = $request->input('secrets', []);
         $defaultPackageId = $request->input('default_package_id');
         $skipExisting = $request->input('skip_existing', true);
+        $routerId = $request->input('router_id');
 
         if (empty($selectedSecrets)) {
             return back()->with('error', 'Tidak ada secret yang dipilih');
         }
 
-        $secrets = collect($this->mikrotik->getPPPoESecrets())
+        $mikrotik = $this->getMikrotikService($routerId);
+
+        $secrets = collect($mikrotik->getPPPoESecrets())
             ->keyBy('name');
-        
+
         $localPackages = Package::all()->keyBy('pppoe_profile');
         $existingUsernames = Customer::whereNotNull('pppoe_username')
             ->pluck('pppoe_username')
@@ -238,7 +265,7 @@ class MikrotikSyncController extends Controller
                 // Parse name from comment or username
                 $customerName = $this->parseCustomerName($secret['comment'], $secret['name']);
 
-                // Create customer
+                // Create customer with mikrotik_router_id
                 Customer::updateOrCreate(
                     ['pppoe_username' => $secret['name']],
                     [
@@ -246,6 +273,7 @@ class MikrotikSyncController extends Controller
                         'pppoe_password' => $secret['password'],
                         'name' => $customerName,
                         'package_id' => $packageId,
+                        'mikrotik_router_id' => $routerId,
                         'static_ip' => $secret['remote_address'],
                         'status' => $secret['disabled'] ? 'suspended' : 'active',
                         'join_date' => now(),
@@ -261,7 +289,7 @@ class MikrotikSyncController extends Controller
                 $message .= ", {$skipped} dilewati (sudah ada)";
             }
 
-            return redirect()->route('admin.mikrotik.sync.index')
+            return redirect()->route('admin.mikrotik.sync.index', ['router_id' => $routerId])
                 ->with('success', $message);
 
         } catch (\Exception $e) {
@@ -276,14 +304,17 @@ class MikrotikSyncController extends Controller
      */
     public function previewHotspot(Request $request)
     {
-        if (!$this->mikrotik->isConnected()) {
-            return redirect()->route('admin.mikrotik.sync.index')
+        $routerData = $this->getRouterData($request);
+        $mikrotik = $this->getMikrotikService($routerData['routerId']);
+
+        if (!$mikrotik->isConnected()) {
+            return redirect()->route('admin.mikrotik.sync.index', ['router_id' => $routerData['routerId']])
                 ->with('error', 'Tidak dapat terhubung ke Mikrotik');
         }
 
-        $users = $this->mikrotik->getHotspotUsers();
+        $users = $mikrotik->getHotspotUsers();
         $localPackages = Package::all()->keyBy('hotspot_profile');
-        
+
         // Get existing usernames
         $existingUsernames = Customer::whereNotNull('username')
             ->pluck('username')
@@ -291,11 +322,11 @@ class MikrotikSyncController extends Controller
 
         $toImport = [];
         $existing = [];
-        
+
         foreach ($users as $user) {
             $user['exists'] = in_array($user['name'], $existingUsernames);
             $user['package'] = $localPackages->get($user['profile']);
-            
+
             if ($user['exists']) {
                 $existing[] = $user;
             } else {
@@ -303,12 +334,12 @@ class MikrotikSyncController extends Controller
             }
         }
 
-        return view('admin.mikrotik.sync.hotspot', [
+        return view('admin.mikrotik.sync.hotspot', array_merge([
             'toImport' => $toImport,
             'existing' => $existing,
             'localPackages' => Package::all(),
             'totalUsers' => count($users),
-        ]);
+        ], $routerData));
     }
 
     /**
@@ -319,14 +350,17 @@ class MikrotikSyncController extends Controller
         $selectedUsers = $request->input('users', []);
         $defaultPackageId = $request->input('default_package_id');
         $skipExisting = $request->input('skip_existing', true);
+        $routerId = $request->input('router_id');
 
         if (empty($selectedUsers)) {
             return back()->with('error', 'Tidak ada user yang dipilih');
         }
 
-        $users = collect($this->mikrotik->getHotspotUsers())
+        $mikrotik = $this->getMikrotikService($routerId);
+
+        $users = collect($mikrotik->getHotspotUsers())
             ->keyBy('name');
-        
+
         $localPackages = Package::all()->keyBy('hotspot_profile');
         $existingUsernames = Customer::pluck('username')->toArray();
 
@@ -356,6 +390,7 @@ class MikrotikSyncController extends Controller
                         'pppoe_password' => $user['password'],
                         'name' => $customerName,
                         'package_id' => $packageId,
+                        'mikrotik_router_id' => $routerId,
                         'mac_address' => $user['mac_address'],
                         'status' => $user['disabled'] ? 'suspended' : 'active',
                         'join_date' => now(),
@@ -371,7 +406,7 @@ class MikrotikSyncController extends Controller
                 $message .= ", {$skipped} dilewati (sudah ada)";
             }
 
-            return redirect()->route('admin.mikrotik.sync.index')
+            return redirect()->route('admin.mikrotik.sync.index', ['router_id' => $routerId])
                 ->with('success', $message);
 
         } catch (\Exception $e) {
