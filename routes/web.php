@@ -146,7 +146,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Settings
         Route::get('/settings', [SettingController::class, 'index'])->name('settings');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
-        
+        Route::get('/settings/roles', [SettingController::class, 'roles'])->name('settings.roles');
+        Route::post('/settings/roles', [SettingController::class, 'updateRoles'])->name('settings.roles.update');
+
         // API Documentation
         Route::get('/api-docs', function () {
             return view('admin.api-docs');

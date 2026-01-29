@@ -20,6 +20,42 @@
                 <h1 class="text-3xl font-bold text-gray-900">System Settings</h1>
             </div>
 
+            <!-- Quick Links -->
+            <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="{{ route('admin.settings.roles') }}" class="flex items-center p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition border-l-4 border-blue-500">
+                    <div class="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-user-shield text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Role & Permission</h3>
+                        <p class="text-sm text-gray-500">Atur hak akses user</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400 ml-auto"></i>
+                </a>
+
+                <a href="{{ route('admin.settings.integrations') }}" class="flex items-center p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition border-l-4 border-green-500">
+                    <div class="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-plug text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Integrasi</h3>
+                        <p class="text-sm text-gray-500">Mikrotik, WhatsApp, dll</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400 ml-auto"></i>
+                </a>
+
+                <a href="{{ route('admin.mikrotik.routers.index') }}" class="flex items-center p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition border-l-4 border-cyan-500">
+                    <div class="h-12 w-12 bg-cyan-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-server text-cyan-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">Router Mikrotik</h3>
+                        <p class="text-sm text-gray-500">Kelola multi-router</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400 ml-auto"></i>
+                </a>
+            </div>
+
             <!-- Success Message -->
             @if(session('success'))
                 <div class="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
