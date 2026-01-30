@@ -39,8 +39,9 @@ class CustomersExport
             'I1' => 'Package',
             'J1' => 'Static IP',
             'K1' => 'MAC Address',
-            'L1' => 'Status',
-            'M1' => 'Join Date',
+            'L1' => 'Collector',
+            'M1' => 'Status',
+            'N1' => 'Join Date',
         ];
 
         foreach ($headers as $cell => $value) {
@@ -67,10 +68,10 @@ class CustomersExport
                 'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ];
-        $sheet->getStyle('A1:M1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:N1')->applyFromArray($headerStyle);
 
         // Get customers data
-        $query = Customer::with('package');
+        $query = Customer::with(['package', 'collector']);
 
         if (!empty($this->filters['search'])) {
             $search = $this->filters['search'];
@@ -106,13 +107,14 @@ class CustomersExport
             $sheet->setCellValue('I' . $row, $customer->package?->name ?? '');
             $sheet->setCellValue('J' . $row, $customer->static_ip ?? '');
             $sheet->setCellValue('K' . $row, $customer->mac_address ?? '');
-            $sheet->setCellValue('L' . $row, $customer->status);
-            $sheet->setCellValue('M' . $row, $customer->join_date?->format('Y-m-d') ?? '');
+            $sheet->setCellValue('L' . $row, $customer->collector?->name ?? '');
+            $sheet->setCellValue('M' . $row, $customer->status);
+            $sheet->setCellValue('N' . $row, $customer->join_date?->format('Y-m-d') ?? '');
             $row++;
         }
 
         // Auto-size columns
-        foreach (range('A', 'M') as $col) {
+        foreach (range('A', 'N') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -125,7 +127,7 @@ class CustomersExport
                     ],
                 ],
             ];
-            $sheet->getStyle('A2:M' . ($row - 1))->applyFromArray($dataStyle);
+            $sheet->getStyle('A2:N' . ($row - 1))->applyFromArray($dataStyle);
         }
 
         return $spreadsheet;
