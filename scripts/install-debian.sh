@@ -57,6 +57,9 @@ apt install -y php8.2-fpm php8.2-cli php8.2-mysql php8.2-mbstring \
     php8.2-intl php8.2-redis php8.2-snmp php8.2-sockets
 
 echo -e "${YELLOW}[5/9] Installing Nginx...${NC}"
+# Stop and disable Apache if exists (conflicts with Nginx on port 80)
+systemctl stop apache2 2>/dev/null || true
+systemctl disable apache2 2>/dev/null || true
 apt install -y nginx
 
 echo -e "${YELLOW}[6/9] Installing MariaDB...${NC}"
@@ -101,6 +104,9 @@ else
 fi
 
 cd $APP_DIR
+
+# Fix git ownership warning
+git config --global --add safe.directory $APP_DIR 2>/dev/null || true
 
 # Allow composer to run as root
 export COMPOSER_ALLOW_SUPERUSER=1
@@ -152,9 +158,9 @@ chmod -R 775 $APP_DIR/storage $APP_DIR/bootstrap/cache
 # Create Nginx config
 cat > /etc/nginx/sites-available/${APP_NAME} << 'NGINX'
 server {
-    listen 80;
-    listen [::]:80;
-    server_name DOMAIN_PLACEHOLDER;
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
     root APP_DIR_PLACEHOLDER/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -188,7 +194,6 @@ server {
 NGINX
 
 # Replace placeholders
-sed -i "s|DOMAIN_PLACEHOLDER|${DOMAIN}|g" /etc/nginx/sites-available/${APP_NAME}
 sed -i "s|APP_DIR_PLACEHOLDER|${APP_DIR}|g" /etc/nginx/sites-available/${APP_NAME}
 
 # Enable site
