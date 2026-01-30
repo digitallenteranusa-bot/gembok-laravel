@@ -102,8 +102,15 @@ fi
 
 cd $APP_DIR
 
-# Install dependencies
-composer install --no-dev --optimize-autoloader --no-interaction
+# Allow composer to run as root
+export COMPOSER_ALLOW_SUPERUSER=1
+
+# Install dependencies (use update if lock file is outdated)
+echo "Installing composer dependencies..."
+if ! composer install --no-dev --optimize-autoloader --no-interaction 2>/dev/null; then
+    echo -e "${YELLOW}Lock file outdated, running composer update...${NC}"
+    composer update --no-dev --optimize-autoloader --no-interaction
+fi
 
 # Setup environment
 if [ ! -f ".env" ]; then
