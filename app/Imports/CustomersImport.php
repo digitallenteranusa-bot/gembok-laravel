@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\Customer;
 use App\Models\Package;
+use App\Models\Collector;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -18,11 +19,14 @@ class CustomersImport
     ];
 
     protected $packages = [];
+    protected $collectors = [];
 
     public function __construct()
     {
         // Cache packages for lookup
         $this->packages = Package::pluck('id', 'name')->toArray();
+        // Cache collectors for lookup
+        $this->collectors = Collector::pluck('id', 'name')->toArray();
     }
 
     public function import($file)
@@ -82,6 +86,15 @@ class CustomersImport
                         }
                     }
 
+                    // Map collector name to ID
+                    $collectorId = null;
+                    if (!empty($data['collector_name'])) {
+                        $collectorId = $this->collectors[$data['collector_name']] ?? null;
+                        if (!$collectorId) {
+                            $this->results['errors'][] = "Baris {$rowNumber}: Kolektor '{$data['collector_name']}' tidak ditemukan, customer tetap dibuat tanpa kolektor.";
+                        }
+                    }
+
                     // Create customer
                     Customer::create([
                         'username' => $data['username'] ?: null,
@@ -92,6 +105,7 @@ class CustomersImport
                         'email' => $data['email'] ?: null,
                         'address' => $data['address'] ?: null,
                         'package_id' => $packageId,
+                        'collector_id' => $collectorId,
                         'static_ip' => $data['static_ip'] ?: null,
                         'mac_address' => $data['mac_address'] ?: null,
                         'status' => $this->normalizeStatus($data['status']),
@@ -122,7 +136,7 @@ class CustomersImport
         $expectedHeaders = [
             'username', 'pppoe_username', 'pppoe_password', 'name',
             'phone', 'email', 'address', 'package_name', 'static_ip',
-            'mac_address', 'status', 'join_date'
+            'mac_address', 'collector_name', 'status', 'join_date'
         ];
 
         foreach ($header as $index => $col) {
@@ -149,6 +163,9 @@ class CustomersImport
                 'tanggal_daftar' => 'join_date',
                 'tgl_bergabung' => 'join_date',
                 'tgl_daftar' => 'join_date',
+                'collector' => 'collector_name',
+                'kolektor' => 'collector_name',
+                'nama_kolektor' => 'collector_name',
             ];
 
             if (isset($variations[$normalized])) {
@@ -169,7 +186,7 @@ class CustomersImport
         $fields = [
             'username', 'pppoe_username', 'pppoe_password', 'name',
             'phone', 'email', 'address', 'package_name', 'static_ip',
-            'mac_address', 'status', 'join_date'
+            'mac_address', 'collector_name', 'status', 'join_date'
         ];
 
         foreach ($fields as $field) {

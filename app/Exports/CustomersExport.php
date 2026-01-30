@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Models\Customer;
 use App\Models\Package;
+use App\Models\Collector;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -165,8 +166,9 @@ class CustomersExport
             'H1' => 'package_name',
             'I1' => 'static_ip',
             'J1' => 'mac_address',
-            'K1' => 'status',
-            'L1' => 'join_date',
+            'K1' => 'collector_name',
+            'L1' => 'status',
+            'M1' => 'join_date',
         ];
 
         foreach ($headers as $cell => $value) {
@@ -189,7 +191,7 @@ class CustomersExport
                 ],
             ],
         ];
-        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:M1')->applyFromArray($headerStyle);
 
         // Example data
         $sheet->setCellValue('A2', 'user001');
@@ -202,11 +204,12 @@ class CustomersExport
         $sheet->setCellValue('H2', 'Paket 10 Mbps');
         $sheet->setCellValue('I2', '192.168.1.100');
         $sheet->setCellValue('J2', 'AA:BB:CC:DD:EE:FF');
-        $sheet->setCellValue('K2', 'active');
-        $sheet->setCellValue('L2', '2024-01-15');
+        $sheet->setCellValue('K2', 'Nama Collector');
+        $sheet->setCellValue('L2', 'active');
+        $sheet->setCellValue('M2', '2024-01-15');
 
         // Auto-size columns
-        foreach (range('A', 'L') as $col) {
+        foreach (range('A', 'M') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -228,6 +231,7 @@ class CustomersExport
             ['package_name', 'Nama paket (harus sesuai dengan nama paket di sistem)', 'Tidak'],
             ['static_ip', 'IP statis yang diberikan ke pelanggan', 'Tidak'],
             ['mac_address', 'MAC Address perangkat pelanggan', 'Tidak'],
+            ['collector_name', 'Nama kolektor yang bertanggung jawab (harus sesuai dengan nama kolektor di sistem)', 'Tidak'],
             ['status', 'Status: active, inactive, atau suspended (default: active)', 'Tidak'],
             ['join_date', 'Tanggal bergabung format YYYY-MM-DD (default: hari ini)', 'Tidak'],
             [''],
@@ -235,6 +239,7 @@ class CustomersExport
             ['- Kolom name wajib diisi'],
             ['- Username harus unik, jika sudah ada akan di-skip'],
             ['- Nama paket harus sesuai dengan yang ada di sistem'],
+            ['- Nama kolektor harus sesuai dengan yang ada di sistem'],
             ['- Status yang valid: active, inactive, suspended'],
         ];
 
@@ -295,6 +300,35 @@ class CustomersExport
         $packageSheet->getColumnDimension('A')->setAutoSize(true);
         $packageSheet->getColumnDimension('B')->setAutoSize(true);
         $packageSheet->getColumnDimension('C')->setAutoSize(true);
+
+        // Sheet 4: Collector List
+        $collectorSheet = $spreadsheet->createSheet();
+        $collectorSheet->setTitle('Daftar Kolektor');
+
+        $collectorSheet->setCellValue('A1', 'Nama Kolektor');
+        $collectorSheet->setCellValue('B1', 'Area');
+        $collectorSheet->setCellValue('C1', 'Status');
+
+        $collectorSheet->getStyle('A1:C1')->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FDE68A'],
+            ],
+        ]);
+
+        $collectors = Collector::where('status', 'active')->orderBy('name')->get();
+        $row = 2;
+        foreach ($collectors as $collector) {
+            $collectorSheet->setCellValue('A' . $row, $collector->name);
+            $collectorSheet->setCellValue('B' . $row, $collector->area ?? '-');
+            $collectorSheet->setCellValue('C' . $row, $collector->status);
+            $row++;
+        }
+
+        $collectorSheet->getColumnDimension('A')->setAutoSize(true);
+        $collectorSheet->getColumnDimension('B')->setAutoSize(true);
+        $collectorSheet->getColumnDimension('C')->setAutoSize(true);
 
         // Set active sheet back to template
         $spreadsheet->setActiveSheetIndex(0);

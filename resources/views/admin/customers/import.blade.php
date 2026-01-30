@@ -123,6 +123,7 @@
                                     <li>package_name - Nama paket</li>
                                     <li>static_ip - IP Statis</li>
                                     <li>mac_address - MAC Address</li>
+                                    <li>collector_name - Nama kolektor</li>
                                     <li>status - Status (active/inactive/suspended)</li>
                                     <li>join_date - Tanggal bergabung</li>
                                 </ul>
@@ -135,6 +136,7 @@
                                 <ul class="text-sm text-yellow-700 space-y-1 list-disc list-inside">
                                     <li>Username yang sudah ada akan di-skip</li>
                                     <li>Nama paket harus persis sama dengan yang ada di sistem</li>
+                                    <li>Nama kolektor harus persis sama dengan yang ada di sistem</li>
                                     <li>Data yang gagal akan dilaporkan setelah import</li>
                                 </ul>
                             </div>
